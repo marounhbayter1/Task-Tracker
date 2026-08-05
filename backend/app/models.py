@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from app.tags import MAX_TAG_COUNT, MAX_TAG_LENGTH, normalize_tags
+
 
 class TaskStatus(str, Enum):
     TODO = "ToDo"
@@ -25,6 +27,7 @@ class TaskCreate(BaseModel):
     status: TaskStatus = TaskStatus.TODO
     priority: TaskPriority = TaskPriority.MEDIUM
     assignee: Optional[str] = None
+    tags: Optional[list[str]] = None
 
     @field_validator("title")
     @classmethod
@@ -39,6 +42,14 @@ class TaskCreate(BaseModel):
 
         return title
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        if value is None:
+            return value
+
+        return normalize_tags(value)
+
 
 class TaskUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -48,6 +59,7 @@ class TaskUpdate(BaseModel):
     status: Optional[TaskStatus] = None
     priority: Optional[TaskPriority] = None
     assignee: Optional[str] = None
+    tags: Optional[list[str]] = None
 
     @field_validator("title")
     @classmethod
@@ -65,6 +77,14 @@ class TaskUpdate(BaseModel):
 
         return title
 
+    @field_validator("tags")
+    @classmethod
+    def validate_tags(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        if value is None:
+            return value
+
+        return normalize_tags(value)
+
 
 class TaskResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -75,5 +95,16 @@ class TaskResponse(BaseModel):
     status: TaskStatus
     priority: TaskPriority
     assignee: Optional[str]
+    tags: Optional[list[str]] = None
     created_at: datetime
     updated_at: datetime
+
+
+class ActivityEvent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    task_id: str
+    event_type: str
+    message: str
+    timestamp: datetime

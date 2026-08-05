@@ -34,6 +34,26 @@
       margin: 0 auto;
     }
 
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      max-width: 1200px;
+      margin: 1rem auto 0;
+      padding: 0 1.5rem;
+    }
+
+    .filter-bar input {
+      flex: 1;
+      min-width: 220px;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid #dbe2ea;
+      border-radius: 6px;
+      background: #ffffff;
+      color: #1f2937;
+      font: inherit;
+    }
+
     .new-task-button,
     .secondary-button,
     .modal-close-button {
@@ -126,6 +146,81 @@
       color: #991b1b;
     }
 
+    .activity-panel {
+      max-width: 1200px;
+      margin: 1rem auto 0;
+      padding: 1rem 1.5rem;
+      border: 1px solid #dbe2ea;
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+    }
+
+    .activity-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .activity-panel h2 {
+      margin-bottom: 0;
+      font-size: 1rem;
+    }
+
+    .activity-panel-status {
+      color: #52606d;
+      font-size: 0.9rem;
+    }
+
+    .activity-list {
+      display: grid;
+      gap: 0.6rem;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+      padding: 0.75rem 0.85rem;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .activity-badge {
+      flex-shrink: 0;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .activity-content p {
+      margin: 0 0 0.25rem;
+      color: #1f2937;
+      font-size: 0.95rem;
+    }
+
+    .activity-content span {
+      color: #64748b;
+      font-size: 0.82rem;
+    }
+
+    .activity-empty {
+      padding: 0.75rem 0.85rem;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #64748b;
+    }
+
     .retry-button {
       margin-left: 0.75rem;
       padding: 0.35rem 0.65rem;
@@ -184,6 +279,22 @@
       margin-bottom: 0.75rem;
       font-size: 0.875rem;
       color: #52606d;
+    }
+
+    .task-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .tag-chip {
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #075985;
+      font-size: 0.8rem;
+      font-weight: 700;
     }
 
     .priority {
@@ -320,9 +431,17 @@
       background: #cbd5e1;
     }
 
+    .secondary-button:hover {
+      background: #cbd5e1;
+    }
+
     @media (max-width: 760px) {
       .board {
         grid-template-columns: 1fr;
+      }
+
+      .filter-bar {
+        flex-wrap: wrap;
       }
     }
   </style>
@@ -339,6 +458,20 @@
   </header>
 
   <div class="board-status" id="board-status" role="status" hidden></div>
+
+  <div class="filter-bar">
+    <input id="tag-filter" type="text" placeholder="Filter by tag" autocomplete="off">
+  </div>
+
+  <section class="activity-panel" aria-labelledby="activity-heading">
+    <div class="activity-panel-header">
+      <h2 id="activity-heading">Activity</h2>
+      <span class="activity-panel-status" id="activity-panel-status">Loading…</span>
+    </div>
+    <ul class="activity-list" id="activity-list">
+      <li class="activity-empty">No activity yet.</li>
+    </ul>
+  </section>
 
   <div class="modal-backdrop" id="task-modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
@@ -381,6 +514,11 @@
           <label for="task-assignee">Assignee</label>
           <input id="task-assignee" name="assignee" type="text" autocomplete="off">
           <div class="field-error" data-field-error="assignee"></div>
+        </div>
+        <div class="field-group">
+          <label for="task-tags">Tags</label>
+          <input id="task-tags" name="tags" type="text" placeholder="Enter tags separated by commas" autocomplete="off">
+          <div class="field-error" data-field-error="tags"></div>
         </div>
         <div class="modal-actions">
           <button class="secondary-button" id="task-form-cancel" type="button">Cancel</button>
@@ -454,11 +592,16 @@
     const statusInput = document.querySelector("#task-status");
     const priorityInput = document.querySelector("#task-priority");
     const assigneeInput = document.querySelector("#task-assignee");
+    const tagsInput = document.querySelector("#task-tags");
+    const tagFilterInput = document.querySelector("#tag-filter");
     const cancelButton = document.querySelector("#task-form-cancel");
     const closeButton = document.querySelector("#modal-close-button");
     const newTaskButton = document.querySelector("#new-task-button");
+    const activityList = document.querySelector("#activity-list");
+    const activityStatus = document.querySelector("#activity-panel-status");
     let draggedTaskId = null;
     let currentTaskId = null;
+    let activeTagFilter = "";
 
     function setBoardState(state, message) {
       document.body.dataset.boardState = state;
@@ -495,6 +638,9 @@
         ? `<p class="task-description">${escapeHtml(task.description)}</p>`
         : "";
       const assignee = task.assignee || "Unassigned";
+      const tags = Array.isArray(task.tags) && task.tags.length > 0
+        ? `<div class="task-tags">${task.tags.map((tag) => `<span class="tag-chip">${escapeHtml(tag)}</span>`).join("")}</div>`
+        : "";
 
       return `
         <article class="task-card" data-task-id="${escapeHtml(task.id)}" draggable="true">
@@ -504,6 +650,7 @@
             <span class="priority">${escapeHtml(task.priority)}</span>
             <span>Assignee: ${escapeHtml(assignee)}</span>
           </div>
+          ${tags}
           <div class="task-card-actions">
             <button class="edit-button" type="button" data-action="edit-task">Edit</button>
           </div>
@@ -511,12 +658,100 @@
       `;
     }
 
+    function getVisibleTasks(tasksToRender) {
+      const normalizedFilter = activeTagFilter.trim().toLowerCase();
+      if (!normalizedFilter) {
+        return tasksToRender;
+      }
+
+      return tasksToRender.filter((task) => {
+        const tags = Array.isArray(task.tags) ? task.tags : [];
+        return tags.some((tag) => String(tag).toLowerCase().includes(normalizedFilter));
+      });
+    }
+
+    function formatActivityTimestamp(value) {
+      if (!value) {
+        return "";
+      }
+
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return value;
+      }
+    }
+
+    function getActivityLabel(eventType) {
+      if (eventType === "status_change") {
+        return "Status";
+      }
+
+      if (eventType === "create") {
+        return "Create";
+      }
+
+      if (eventType === "update") {
+        return "Update";
+      }
+
+      if (eventType === "delete") {
+        return "Delete";
+      }
+
+      return eventType;
+    }
+
+    function renderActivity(events) {
+      if (!Array.isArray(events) || events.length === 0) {
+        activityList.innerHTML = '<li class="activity-empty">No activity yet.</li>';
+        activityStatus.textContent = "No activity yet";
+        return;
+      }
+
+      const items = events
+        .slice()
+        .reverse()
+        .map((event) => `
+          <li class="activity-item">
+            <span class="activity-badge">${escapeHtml(getActivityLabel(event.event_type))}</span>
+            <div class="activity-content">
+              <p>${escapeHtml(event.message || "Task updated")}</p>
+              <span>${escapeHtml(formatActivityTimestamp(event.timestamp))}</span>
+            </div>
+          </li>
+        `)
+        .join("");
+
+      activityList.innerHTML = items;
+      activityStatus.textContent = "Recent changes";
+    }
+
+    async function fetchActivity() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/activity`);
+
+        if (!response.ok) {
+          throw new Error(`Unable to load activity: ${response.status}`);
+        }
+
+        const events = await response.json();
+        renderActivity(events);
+      } catch (error) {
+        console.error(error);
+        activityStatus.textContent = "Unavailable";
+        activityList.innerHTML = '<li class="activity-empty">Activity is unavailable right now.</li>';
+      }
+    }
+
     function renderBoard(tasksToRender) {
       const tasksByStatus = Object.fromEntries(
         STATUSES.map((status) => [status, []]),
       );
 
-      for (const task of tasksToRender) {
+      const visibleTasks = getVisibleTasks(tasksToRender);
+
+      for (const task of visibleTasks) {
         if (tasksByStatus[task.status]) {
           tasksByStatus[task.status].push(task);
         }
@@ -600,6 +835,17 @@
       modalTitle.textContent = "Create Task";
     }
 
+    function parseTags(value) {
+      if (!value) {
+        return [];
+      }
+
+      return value
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+    }
+
     function openTaskModal(taskToEdit) {
       clearFormErrors();
       if (taskToEdit) {
@@ -611,6 +857,7 @@
         statusInput.value = taskToEdit.status || "ToDo";
         priorityInput.value = taskToEdit.priority || "Medium";
         assigneeInput.value = taskToEdit.assignee || "";
+        tagsInput.value = Array.isArray(taskToEdit.tags) ? taskToEdit.tags.join(", ") : "";
       } else {
         currentTaskId = null;
         modalTitle.textContent = "Create Task";
@@ -649,12 +896,14 @@
 
       const description = descriptionInput.value;
       const assignee = assigneeInput.value.trim() === "" ? null : assigneeInput.value.trim();
+      const tags = parseTags(tagsInput.value);
       const payload = {
         title,
         description: description ?? "",
         status: statusInput.value,
         priority: priorityInput.value,
         assignee,
+        tags,
       };
 
       const url = currentTaskId
@@ -671,7 +920,7 @@
 
         if (response.status === 200 || response.status === 201) {
           closeTaskModal();
-          await fetchTasks();
+          await Promise.all([fetchTasks(), fetchActivity()]);
           return;
         }
 
@@ -711,6 +960,7 @@
         });
 
         if (response.status === 200) {
+          await fetchActivity();
           setBoardState(tasks.length === 0 ? "empty" : "ready");
           return;
         }
@@ -813,8 +1063,13 @@
 
     boardStatus.addEventListener("click", (event) => {
       if (event.target.matches(".retry-button")) {
-        fetchTasks();
+        Promise.all([fetchTasks(), fetchActivity()]);
       }
+    });
+
+    tagFilterInput.addEventListener("input", (event) => {
+      activeTagFilter = event.target.value;
+      renderBoard(tasks);
     });
 
     newTaskButton.addEventListener("click", () => {
@@ -837,7 +1092,7 @@
       }
     });
 
-    fetchTasks();
+    Promise.all([fetchTasks(), fetchActivity()]);
   </script>
 </body>
 </html>

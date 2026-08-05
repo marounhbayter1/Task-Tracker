@@ -32,6 +32,47 @@ def test_create_task_valid_returns_201_with_full_body(client):
     assert body["updated_at"]
 
 
+def test_create_task_with_tags_normalizes_and_returns_tags(client):
+    response = client.post(
+        "/tasks",
+        json={"title": "Tagged task", "tags": [" Backend ", "frontend", "UI"]},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["tags"] == ["Backend", "frontend", "UI"]
+
+
+def test_create_task_with_blank_tag_returns_422(client):
+    response = client.post(
+        "/tasks",
+        json={"title": "Bad tags", "tags": ["backend", "   "]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_task_with_too_many_tags_returns_422(client):
+    response = client.post(
+        "/tasks",
+        json={"title": "Too many tags", "tags": [f"tag-{index}" for index in range(11)]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_patch_task_tags_updates_only_when_provided(client, created_task):
+    first_update = client.patch(
+        f"/tasks/{created_task['id']}",
+        json={"tags": ["alpha", "beta"]},
+    )
+    assert first_update.status_code == 200
+    assert first_update.json()["tags"] == ["alpha", "beta"]
+
+    second_update = client.patch(f"/tasks/{created_task['id']}", json={"description": "Updated"})
+    assert second_update.status_code == 200
+    assert second_update.json()["tags"] == ["alpha", "beta"]
+
+
 def test_create_task_missing_title_returns_422(client):
     response = client.post("/tasks", json={"priority": "Low"})
 
@@ -184,3 +225,43 @@ def test_delete_missing_returns_404(client):
 
     assert response.status_code == 404
     assert response.json() == {"detail": f"Task with id {missing_id} not found"}
+
+
+def test_activity_endpoint_returns_empty_list_by_default(client):
+    response = client.get("/activity")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_activity_endpoint_records_create_update_and_delete_events(client):
+    created = client.post("/tasks", json={"title": "Activity task"}).json()
+
+    client.patch(f"/tasks/{created['id']}", json={"description": "Updated description"})
+    client.delete(f"/tasks/{created['id']}")
+
+    response = client.get("/activity")
+
+    assert response.status_code == 200
+    events = response.json()
+    assert [event["event_type"] for event in events] == ["create", "update", "delete"]
+    assert events[0]["task_id"] == created["id"]
+    assert events[0]["message"] == "Task created"
+    assert events[1]["message"] == "Task updated"
+    assert events[2]["message"] == "Task deleted"
+
+
+def test_activity_endpoint_records_status_change_events(client, created_task):
+    response = client.patch(
+        f"/tasks/{created_task['id']}",
+        json={"status": "InProgress"},
+    )
+
+    assert response.status_code == 200
+
+    activity_response = client.get("/activity")
+
+    assert activity_response.status_code == 200
+    events = activity_response.json()
+    assert [event["event_type"] for event in events] == ["create", "status_change"]
+    assert events[1]["message"] == "Status changed to InProgress"

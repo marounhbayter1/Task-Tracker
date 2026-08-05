@@ -42,8 +42,29 @@ Copy-Item .env.example .env
 
 ## Run
 
+Start the backend API from the project root:
+
 ```powershell
 python -m uvicorn backend.app.main:app --reload --port 8000
+```
+
+Then open the frontend in your browser by loading the static file:
+
+- Open `frontend/index.html` directly in the browser, or
+- Serve the `frontend` directory with a simple local HTTP server such as:
+
+```powershell
+python -m http.server 5500 --directory frontend
+```
+
+and browse to `http://127.0.0.1:5500`.
+
+## Run tests
+
+From the project root, run:
+
+```powershell
+pytest -q
 ```
 
 ## Test the health endpoint
