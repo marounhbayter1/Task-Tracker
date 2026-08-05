@@ -91,9 +91,7 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 1.25rem;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1.5rem;
+      width: 100%;
     }
 
     .kanban-column {
@@ -146,14 +144,23 @@
       color: #991b1b;
     }
 
-    .activity-panel {
+    .main-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 1.5rem;
       max-width: 1200px;
-      margin: 1rem auto 0;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+
+    .activity-panel {
+      width: 100%;
       padding: 1rem 1.5rem;
       border: 1px solid #dbe2ea;
       border-radius: 10px;
       background: #ffffff;
       box-shadow: 0 1px 2px rgb(15 23 42 / 8%);
+      align-self: start;
     }
 
     .activity-panel-header {
@@ -162,6 +169,13 @@
       justify-content: space-between;
       gap: 1rem;
       margin-bottom: 0.75rem;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1.25rem;
+      width: 100%;
     }
 
     .activity-panel h2 {
@@ -463,16 +477,6 @@
     <input id="tag-filter" type="text" placeholder="Filter by tag" autocomplete="off">
   </div>
 
-  <section class="activity-panel" aria-labelledby="activity-heading">
-    <div class="activity-panel-header">
-      <h2 id="activity-heading">Activity</h2>
-      <span class="activity-panel-status" id="activity-panel-status">Loading…</span>
-    </div>
-    <ul class="activity-list" id="activity-list">
-      <li class="activity-empty">No activity yet.</li>
-    </ul>
-  </section>
-
   <div class="modal-backdrop" id="task-modal-backdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
       <div class="modal-header">
@@ -528,7 +532,8 @@
     </div>
   </div>
 
-  <main class="board" aria-label="Task Tracker Kanban board">
+  <div class="main-layout">
+    <main class="board" aria-label="Task Tracker Kanban board">
     <section class="kanban-column" data-status="ToDo" aria-labelledby="todo-heading">
       <h2 class="column-title" id="todo-heading">To Do <span class="task-count">1</span></h2>
       <div class="task-list">
@@ -573,6 +578,17 @@
       </div>
     </section>
   </main>
+
+  <aside class="activity-panel" aria-labelledby="activity-heading">
+    <div class="activity-panel-header">
+      <h2 id="activity-heading">Activity</h2>
+      <span class="activity-panel-status" id="activity-panel-status">Loading…</span>
+    </div>
+    <ul class="activity-list" id="activity-list">
+      <li class="activity-empty">No activity yet.</li>
+    </ul>
+  </aside>
+  </div>
   <script>
     const API_BASE_URL = "http://localhost:8000";
     const PRIORITY_ORDER = { High: 0, Medium: 1, Low: 2 };
