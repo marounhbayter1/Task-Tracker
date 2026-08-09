@@ -11,6 +11,30 @@ def normalize_tags(
     max_count: int | None = MAX_TAG_COUNT,
     max_length: int | None = MAX_TAG_LENGTH,
 ) -> list[str]:
+    """Validate and normalize a list of tag strings.
+
+    Args:
+        value (Any): The raw tags input. None returns an empty list.
+            A single string is treated as a one-item list. Any other
+            non-list type is rejected.
+        max_count (int | None): Maximum number of tags allowed after
+            normalization, or None to skip this check. Defaults to
+            `MAX_TAG_COUNT`.
+        max_length (int | None): Maximum allowed length of each
+            normalized tag, or None to skip this check. Defaults to
+            `MAX_TAG_LENGTH`.
+
+    Returns:
+        list[str]: The normalized tags, each stripped of leading and
+            trailing whitespace, in their original order.
+
+    Raises:
+        ValueError: If `value` is not None, a string, or a list; if
+            any item is not a string; if any tag is blank after
+            stripping; if `max_length` is set and a tag's length
+            exceeds it; or if `max_count` is set and more tags are
+            supplied than allowed.
+    """
     if value is None:
         return []
 

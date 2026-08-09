@@ -60,6 +60,17 @@ def _append_activity(task_id: str, event_type: str, message: str) -> None:
 
 
 def add_task(payload: TaskCreate) -> TaskResponse:
+    """Create and persist a new task, then record a "create" activity event.
+
+    Args:
+        payload (TaskCreate): The already-validated task data to
+            store.
+
+    Returns:
+        TaskResponse: The newly created task, with a generated `id`
+            and `created_at`/`updated_at` both set to the current UTC
+            time.
+    """
     now = datetime.now(timezone.utc)
     task = TaskResponse(
         id=str(uuid4()),
@@ -83,6 +94,20 @@ def get_all_tasks(
     status: Optional[TaskStatus] = None,
     priority: Optional[TaskPriority] = None,
 ) -> list[TaskResponse]:
+    """Return tasks, optionally filtered by status and/or priority.
+
+    Args:
+        status (TaskStatus | None): If given, only include tasks with
+            this exact status. Defaults to None (no filter).
+        priority (TaskPriority | None): If given, only include tasks
+            with this exact priority. Defaults to None (no filter).
+            Both filters apply together (logical AND) when both are
+            given.
+
+    Returns:
+        list[TaskResponse]: Matching tasks, in the in-memory task
+            store's iteration (insertion) order.
+    """
     tasks = list(_tasks.values())
 
     if status is not None:
@@ -95,10 +120,41 @@ def get_all_tasks(
 
 
 def get_task_by_id(task_id: str) -> Optional[TaskResponse]:
+    """Look up a single task by id.
+
+    Args:
+        task_id (str): The id of the task to fetch.
+
+    Returns:
+        TaskResponse | None: The matching task, or None if no task
+            with `task_id` exists.
+    """
     return _tasks.get(task_id)
 
 
 def update_task(task_id: str, payload: TaskUpdate) -> Optional[TaskResponse]:
+    """Apply a partial update to an existing task and persist it.
+
+    Only fields explicitly set on `payload` are applied
+    (`payload.model_dump(exclude_unset=True)`); every other field
+    keeps its current value. [VERIFIED] An explicit
+    `description=None` is normalized to an empty string, and an
+    explicit `tags=None` leaves the existing tags unchanged (it does
+    not clear them). A "status_change" activity event is recorded
+    when `status` is among the changed fields and differs from the
+    task's current status; otherwise, if any field changed, an
+    "update" event is recorded.
+
+    Args:
+        task_id (str): The id of the task to update.
+        payload (TaskUpdate): The fields to change.
+
+    Returns:
+        TaskResponse | None: The updated task, or None if no task
+            with `task_id` exists. If `payload` has no fields set,
+            the existing task is returned unchanged and no activity
+            event is recorded.
+    """
     existing_task = _tasks.get(task_id)
 
     if existing_task is None:
@@ -134,6 +190,16 @@ def update_task(task_id: str, payload: TaskUpdate) -> Optional[TaskResponse]:
 
 
 def delete_task(task_id: str) -> bool:
+    """Delete a task by id and record a "delete" activity event.
+
+    Args:
+        task_id (str): The id of the task to delete.
+
+    Returns:
+        bool: True if a task was found and deleted, False if no task
+            with `task_id` existed (in which case no activity event
+            is recorded).
+    """
     if task_id not in _tasks:
         return False
 
@@ -144,6 +210,13 @@ def delete_task(task_id: str) -> bool:
 
 
 def get_activity_events() -> list[ActivityEvent]:
+    """Return all recorded activity events, in the order recorded.
+
+    Returns:
+        list[ActivityEvent]: A new list containing every activity
+            event currently stored (empty if none have been
+            recorded).
+    """
     return list(_activity_events)
 
 

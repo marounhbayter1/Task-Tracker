@@ -32,6 +32,20 @@ class TaskCreate(BaseModel):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: str) -> str:
+        """Validate and normalize a task title.
+
+        Args:
+            value (str): The raw title supplied by the caller.
+
+        Returns:
+            str: The title with leading/trailing whitespace stripped.
+
+        Raises:
+            ValueError: If the stripped title is empty, or if it is
+                longer than 200 characters. Pydantic turns this into a
+                422 response when `TaskCreate` is used as a FastAPI
+                request body.
+        """
         title = value.strip()
 
         if not title:
@@ -45,6 +59,26 @@ class TaskCreate(BaseModel):
     @field_validator("tags")
     @classmethod
     def validate_tags(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate and normalize the `tags` list via `tags.normalize_tags`.
+
+        Args:
+            value (list[str] | None): The raw tags supplied by the
+                caller, or None if the field was omitted.
+
+        Returns:
+            list[str] | None: None if `value` is None; otherwise the
+                normalized tag list (whitespace-stripped, non-blank,
+                at most `MAX_TAG_COUNT` tags of at most
+                `MAX_TAG_LENGTH` characters each).
+
+        Raises:
+            ValueError: If any tag is not a string, is blank after
+                stripping, exceeds `MAX_TAG_LENGTH`, or if more than
+                `MAX_TAG_COUNT` tags are supplied (raised by
+                `normalize_tags`). Pydantic turns this into a 422
+                response when `TaskCreate` is used as a FastAPI
+                request body.
+        """
         if value is None:
             return value
 
@@ -64,6 +98,29 @@ class TaskUpdate(BaseModel):
     @field_validator("title")
     @classmethod
     def validate_title(cls, value: Optional[str]) -> str:
+        """Validate and normalize a task title for a partial update.
+
+        Because `title` defaults to None on `TaskUpdate` and pydantic
+        does not run field validators on an unset default, this
+        validator only runs when the caller explicitly includes
+        `title` in the request body. [VERIFIED] Sending
+        `"title": null` therefore reaches this validator and fails
+        (rather than being treated as "no change"), while omitting
+        `title` entirely skips validation and leaves the title
+        unchanged.
+
+        Args:
+            value (str | None): The raw title supplied by the caller.
+
+        Returns:
+            str: The title with leading/trailing whitespace stripped.
+
+        Raises:
+            ValueError: If `value` is None, if the stripped title is
+                empty, or if it is longer than 200 characters.
+                Pydantic turns this into a 422 response when
+                `TaskUpdate` is used as a FastAPI request body.
+        """
         if value is None:
             raise ValueError("Title must not be null")
 
@@ -80,6 +137,27 @@ class TaskUpdate(BaseModel):
     @field_validator("tags")
     @classmethod
     def validate_tags(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        """Validate and normalize the `tags` list for a partial update.
+
+        Args:
+            value (list[str] | None): The raw tags supplied by the
+                caller, or None if omitted or explicitly set to null.
+
+        Returns:
+            list[str] | None: None unchanged. [VERIFIED] Per
+                `storage.update_task`, a None here is interpreted as
+                "keep the task's existing tags" rather than "clear the
+                tags". Otherwise, the normalized tag list produced by
+                `normalize_tags`.
+
+        Raises:
+            ValueError: If any tag is not a string, is blank after
+                stripping, exceeds `MAX_TAG_LENGTH`, or if more than
+                `MAX_TAG_COUNT` tags are supplied (raised by
+                `normalize_tags`). Pydantic turns this into a 422
+                response when `TaskUpdate` is used as a FastAPI
+                request body.
+        """
         if value is None:
             return value
 
