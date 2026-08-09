@@ -1,0 +1,35 @@
+# Secrets / environment
+.env
+.env.*
+
+# Version control
+.git
+.gitignore
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Node (excluded if present; not used by this backend)
+node_modules/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
