@@ -194,3 +194,7 @@ Design decisions, user stories, and verification evidence for this module are in
 - [`docs/midcourse/verification.md`](docs/midcourse/verification.md)
 - [`docs/midcourse/reflection.md`](docs/midcourse/reflection.md)
 - [`docs/midcourse/prompt-log.md`](docs/midcourse/prompt-log.md)
+
+Module 4 technical decision notes are in `docs/decisions/`:
+
+- [`docs/decisions/in-memory-storage-decision.md`](docs/decisions/in-memory-storage-decision.md) — draft decision note on in-memory task storage (context, decision, alternatives, trade-offs, consequences, open questions)
