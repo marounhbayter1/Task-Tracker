@@ -22,7 +22,7 @@ RUN useradd --create-home --shell /usr/sbin/nologin app
 COPY --from=builder /install /usr/local
 
 # Application code only (no tests, frontend, docs, or env files)
-COPY backend/app ./app
+COPY app ./app
 
 RUN chown -R app:app /app
 

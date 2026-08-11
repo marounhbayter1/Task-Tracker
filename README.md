@@ -1,10 +1,10 @@
 # Task Tracker
 
-Module 4 course project: a small full-stack task management app built with FastAPI and a static HTML/JS frontend. The backend stores tasks and activity history in a local JSON file (`backend/data/tasks.json`), supports task CRUD, normalizes and validates tags, enforces a fixed status-transition workflow, and records create/update/delete/status-change activity events.
+Task Tracker project: a small full-stack task management app built with FastAPI and a static HTML/JS frontend. The backend stores tasks and activity history in a local JSON file (`data/tasks.json`), supports task CRUD, normalizes and validates tags, enforces a fixed status-transition workflow, and records create/update/delete/status-change activity events.
 
 ## 1. Project overview
 
-- **Backend**: FastAPI app (`backend/app/`) exposing task and activity endpoints, backed by a JSON file instead of a database.
+- **Backend**: FastAPI app (`app/`) exposing task and activity endpoints, backed by a JSON file instead of a database.
 - **Frontend**: a single static page (`frontend/index.html`) for creating tasks and viewing recent activity.
 - **Tests**: pytest suite (`tests/`) covering the API via FastAPI's `TestClient`.
 - **CI**: GitHub Actions workflow that runs the test suite and then builds the Docker image (see [section 7](#7-ci-workflow-summary)).
@@ -50,26 +50,19 @@ Optional — copy the example environment file:
 Copy-Item .env.example .env
 ```
 
-`.env.example` currently defines `PORT` and `APP_ENV`. `backend/app/main.py` calls `load_dotenv()`, but no code in `backend/app/` currently reads `PORT` or `APP_ENV` (or any other environment variable) — copying `.env` is optional today and does not change app behavior.
+`.env.example` currently defines `PORT` and `APP_ENV`. `app/main.py` calls `load_dotenv()`, but no code in `app/` currently reads `PORT` or `APP_ENV` (or any other environment variable) — copying `.env` is optional today and does not change app behavior.
 
 ## 4. Run the app locally
 
 ### Backend
 
-The course command is `uvicorn app.main:app --reload --port 8000`. In this repo, the `app` package lives under `backend/`, so that exact command only resolves from inside the `backend` directory. Run it as:
+The `app` package lives at the repo root, so the course command resolves directly from the repo root with no `cd` needed:
 
 ```powershell
-cd backend
 uvicorn app.main:app --reload --port 8000
 ```
 
-Equivalent, without changing directories (this is what the previous version of this README documented, and it still works):
-
-```powershell
-python -m uvicorn backend.app.main:app --reload --port 8000
-```
-
-Either way, the API is served at http://127.0.0.1:8000, and the health check is at http://127.0.0.1:8000/health.
+The API is served at http://127.0.0.1:8000, and the health check is at http://127.0.0.1:8000/health.
 
 With the backend running, interactive API docs (Swagger UI) are available at http://127.0.0.1:8000/docs.
 
@@ -84,7 +77,7 @@ The frontend is a single static file with no build step.
 python -m http.server 5500 --directory frontend
 ```
 
-Then browse to http://127.0.0.1:5500. The backend's CORS configuration (`backend/app/main.py`) only allows requests from `http://localhost:5500`, so use that origin (not `127.0.0.1:5500`) if the frontend needs to call the API from a browser.
+Then browse to http://127.0.0.1:5500. The backend's CORS configuration (`app/main.py`) only allows requests from `http://localhost:5500`, so use that origin (not `127.0.0.1:5500`) if the frontend needs to call the API from a browser.
 
 ## 5. Run tests
 
@@ -94,13 +87,19 @@ From the repository root, with the virtual environment active:
 pytest -v
 ```
 
-`tests/conftest.py` adds `backend/` to `sys.path`, so this command works from the repo root without extra configuration. 24 tests currently pass.
+`tests/conftest.py` adds the repo root to `sys.path`, so this command works from the repo root without extra configuration. 24 tests currently pass.
 
-There is also a standalone script, `tests/verify_a.py`, that exercises pydantic model validation directly (outside of pytest). As currently written, running it directly (`python tests/verify_a.py`) fails with `ModuleNotFoundError: No module named 'app'`, because it imports `backend.app.models`, which in turn does `from app.tags import ...` — an import path that only resolves when `backend/` (not the repo root) is on `sys.path`. Treat this script as reference/demonstration code rather than a supported entry point until that import path is fixed.
+There is also a standalone script, `tests/verify_a.py`, that exercises pydantic model validation directly (outside of pytest). Run it with:
+
+```powershell
+python tests/verify_a.py
+```
+
+It imports `app.models` directly and prints 8 `PASS`/`FAIL` lines — this now works as a supported entry point (before the final-project restructure moved `app/` to the repo root, it failed with `ModuleNotFoundError` because its import path only resolved when a now-removed `backend/` directory was on `sys.path`).
 
 ## 6. Run with Docker
 
-The `Dockerfile` builds a multi-stage image that installs dependencies from `requirements.txt`, then copies in only `backend/app` (no tests, frontend, docs, or env files) and runs it as a non-root user.
+The `Dockerfile` builds a multi-stage image that installs dependencies from `requirements.txt`, then copies in only `app/` (no tests, frontend, docs, or env files) and runs it as a non-root user.
 
 Build the image from the repo root:
 
@@ -117,6 +116,8 @@ docker run --rm -p 8000:8000 task-tracker
 The API is then available at http://127.0.0.1:8000 (e.g. http://127.0.0.1:8000/health). [VERIFY] These two commands were transcribed directly from `Dockerfile` and `.github/workflows/ci.yml` (which runs `docker build -t task-tracker:ci .`), but could not be executed against a live Docker daemon in this environment to confirm end-to-end — please verify `build`/`run` locally before relying on this section.
 
 Note: the frontend and `tests/` directory are intentionally not copied into the image, and there is no `docker-compose` setup in this repo.
+
+See [`docs/release-evidence.md`](docs/release-evidence.md) (§B2) for exactly what was and wasn't confirmed about Docker in the final-project environment: the image build succeeds in CI, and the non-root user/no-secrets setup was verified by reading `Dockerfile`, but a live `docker run` + `/health` check could not be performed there due to a virtualization limitation on that machine — a teammate with a normal Docker-capable host should not hit this issue.
 
 ## 7. CI workflow summary
 
@@ -140,23 +141,25 @@ Task Tracker/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── business_rules.py   # status-transition rules
-│   │   ├── main.py             # FastAPI app and route handlers
-│   │   ├── models.py           # pydantic request/response models
-│   │   ├── storage.py          # JSON-file-backed task/activity store
-│   │   └── tags.py             # tag normalization/validation
-│   └── data/
-│       └── tasks.json          # persisted tasks + activity events
+├── app/
+│   ├── __init__.py
+│   ├── business_rules.py   # status-transition rules
+│   ├── main.py             # FastAPI app and route handlers
+│   ├── models.py           # pydantic request/response models
+│   ├── storage.py          # JSON-file-backed task/activity store
+│   └── tags.py             # tag normalization/validation
+├── data/
+│   └── tasks.json          # persisted tasks + activity events
 ├── docs/
-│   └── midcourse/
-│       ├── mini-adr.md         # architecture decision notes
-│       ├── prompt-log.md
-│       ├── reflection.md
-│       ├── user-stories.md
-│       └── verification.md
+│   ├── midcourse/
+│   │   ├── mini-adr.md         # architecture decision notes
+│   │   ├── prompt-log.md
+│   │   ├── reflection.md
+│   │   ├── user-stories.md
+│   │   └── verification.md
+│   ├── ai-playbook.md
+│   ├── final-ai-review.md
+│   └── release-evidence.md
 ├── frontend/
 │   └── index.html              # static frontend, no build step
 ├── tests/
@@ -166,6 +169,7 @@ Task Tracker/
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
+├── AGENTS.md
 ├── Dockerfile
 ├── requirements.txt
 └── README.md
@@ -173,14 +177,14 @@ Task Tracker/
 
 ## 9. Project conventions and current limitations
 
-- **Storage**: tasks and activity events are stored in a single JSON file (`backend/data/tasks.json`) via an in-memory dict that is rewritten to disk on every mutation (`backend/app/storage.py`). There is no database.
+- **Storage**: tasks and activity events are stored in a single JSON file (`data/tasks.json`) via an in-memory dict that is rewritten to disk on every mutation (`app/storage.py`). There is no database.
 - **No authentication or authorization**: all endpoints are open; there is no user model or session/token handling.
-- **CORS is locked down**: `backend/app/main.py` only allows the origin `http://localhost:5500`.
+- **CORS is locked down**: `app/main.py` only allows the origin `http://localhost:5500`.
 - **Strict request models**: `TaskCreate`/`TaskUpdate` use `model_config = ConfigDict(extra="forbid")`, so unknown fields in a request body are rejected with `422`.
-- **Fixed status workflow**: `backend/app/business_rules.py` only allows `ToDo → InProgress`, `InProgress → Done`, and `Done → InProgress`. Any other transition — including setting a status to its current value — returns `422`.
-- **Tag limits**: at most 10 tags per task, each at most 30 characters, non-blank after trimming (`backend/app/tags.py`).
+- **Fixed status workflow**: `app/business_rules.py` only allows `ToDo → InProgress`, `InProgress → Done`, and `Done → InProgress`. Any other transition — including setting a status to its current value — returns `422`.
+- **Tag limits**: at most 10 tags per task, each at most 30 characters, non-blank after trimming (`app/tags.py`).
 - **Title limits**: 1–200 characters after trimming; blank titles are rejected.
-- **Partial-update quirks** (`backend/app/storage.py`): sending `"description": null` in a `PATCH` resets the description to `""`; sending `"tags": null` leaves the existing tags unchanged (it does not clear them); sending `"title": null` is rejected with `422` rather than treated as "no change."
+- **Partial-update quirks** (`app/storage.py`): sending `"description": null` in a `PATCH` resets the description to `""`; sending `"tags": null` leaves the existing tags unchanged (it does not clear them); sending `"title": null` is rejected with `422` rather than treated as "no change."
 - **No pagination**: `GET /tasks` and `GET /activity` always return the full list.
 - **Single-process only**: the JSON-file store has no locking, so it is not designed for concurrent multi-process/multi-instance use.
 - This is a learning project. It does **not** claim deployment readiness, production hardening, authentication, or database-backed storage.
@@ -198,3 +202,53 @@ Design decisions, user stories, and verification evidence for this module are in
 Module 4 technical decision notes are in `docs/decisions/`:
 
 - [`docs/decisions/in-memory-storage-decision.md`](docs/decisions/in-memory-storage-decision.md) — draft decision note on in-memory task storage (context, decision, alternatives, trade-offs, consequences, open questions)
+
+## Final Project
+
+Branch reviewed: `final-project`
+
+### What this submission demonstrates
+- Existing Task Tracker app still runs inside the intended course scope — no rewrites, no scope creep (see [section 9](#9-project-conventions-and-current-limitations) for what's intentionally out of scope).
+- CI runs the pytest suite on push and pull request (`.github/workflows/ci.yml`).
+- Docker image builds successfully, confirmed via CI's `docker-build` job. A live `docker run` + `/health` check could not be completed in this session's environment (no virtualization available for Docker Desktop on this VM) — see `docs/release-evidence.md` §B2 for the full, honest accounting rather than an assumed result.
+- AI review, security, and ownership evidence is in `docs/`.
+
+### How to run locally
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+Frontend, in a second terminal:
+```powershell
+python -m http.server 5500 --directory frontend
+```
+Then browse to `http://localhost:5500` (not `127.0.0.1:5500` — see [section 4](#4-run-the-app-locally)).
+
+### How to run tests
+```powershell
+pytest -v
+```
+24 passed, 0 failed (see [`docs/final/evidence/test-baseline.md`](docs/final/evidence/test-baseline.md)).
+
+### How to run with Docker
+```powershell
+docker build -t task-tracker .
+docker run --rm -p 8000:8000 task-tracker
+curl http://127.0.0.1:8000/health
+```
+The build step is confirmed working (CI [run 31478809319](https://github.com/marounhbayter1/Task-Tracker/actions/runs/31478809319)); the `run`/`curl` steps are the correct, documented commands but were not executed live in this environment — see [`docs/release-evidence.md`](docs/release-evidence.md) §B2.
+
+### Evidence files
+- [`docs/release-evidence.md`](docs/release-evidence.md)
+- [`docs/final-ai-review.md`](docs/final-ai-review.md)
+- [`docs/ai-playbook.md`](docs/ai-playbook.md)
+- [`docs/final/evidence/`](docs/final/evidence/) — Part A baseline: backend health check, frontend check, test baseline
+
+### AI assistance summary
+AI helped draft or review: CI, Docker, docs, security, debugging.
+I verified the work by: tests, diff review, live `/health` and endpoint checks, and a manual scan (found an accidentally-committed virtualenv, `.tmp-ci-venv/`, that neither AI pass had flagged).
+One AI suggestion I rejected or corrected: was asked to assume Docker was running and write up a passing result after Docker Desktop failed to start here — refused, and documented the real failure and its cause in `docs/release-evidence.md` instead.
+
+Note on repo structure: the `app/` package was moved from `backend/app/` to the repo root (and `backend/data/` to `data/`) after Parts A–C were evidenced, to match the course's expected layout. Evidence docs from those parts describe paths/commands as they were true when written (e.g. `backend/app/storage.py`) and were left unedited to preserve an accurate record.
