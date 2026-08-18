@@ -19,7 +19,7 @@ It does not implement authentication, a database, or production deployment. See 
 Confirmed by reading `requirements.txt`, `README.md`, `Dockerfile`, and `.github/workflows/ci.yml`.
 
 - **Language/runtime**: Python 3.11 (pinned in CI and Docker). README notes it has also been run locally on 3.12 — not confirmed as officially supported.
-- **Dependencies** (`requirements.txt`): `fastapi`, `uvicorn[standard]`, `pydantic`, `python-dotenv`, `pytest`, `httpx2`. Note: the last entry is literally `httpx2`, not `httpx` — this is unusual (FastAPI's `TestClient` normally depends on `httpx`). Not confirmed whether this is intentional; do not silently "fix" it.
+- **Dependencies** (`requirements.txt`): `fastapi`, `uvicorn[standard]`, `pydantic`, `python-dotenv`, `pytest`, `httpx`. (History: this briefly pinned `httpx2` instead — a real PyPI package by `httpx`'s own maintainer, verified via a from-scratch install + full passing test run, see `docs/final-ai-review.md`'s security mini-review. It was changed back to the conventional `httpx` after instructor review flagged it, as a deliberate choice to reduce friction — not because the verification was wrong. Don't "fix" this dependency again without re-reading that history.)
 
 **Run the backend** (from repo root — `app/` lives at the top level, no `cd` needed):
 ```powershell
