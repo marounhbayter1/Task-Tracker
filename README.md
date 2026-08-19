@@ -1,4 +1,3 @@
-Testing Commit
 # Task Tracker
 
 Task Tracker project: a small full-stack task management app built with FastAPI and a static HTML/JS frontend. The backend stores tasks and activity history in a local JSON file (`data/tasks.json`), supports task CRUD, normalizes and validates tags, enforces a fixed status-transition workflow, and records create/update/delete/status-change activity events.
@@ -211,7 +210,7 @@ Branch reviewed: `final-project`
 ### What this submission demonstrates
 - Existing Task Tracker app still runs inside the intended course scope — no rewrites, no scope creep (see [section 9](#9-project-conventions-and-current-limitations) for what's intentionally out of scope).
 - CI runs the pytest suite on push and pull request (`.github/workflows/ci.yml`).
-- Docker image builds successfully, confirmed via CI's `docker-build` job. A live `docker run` + `/health` check could not be completed in this session's environment (no virtualization available for Docker Desktop on this VM) — see `docs/release-evidence.md` §B2 for the full, honest accounting rather than an assumed result.
+- Docker image builds successfully, confirmed via CI's `docker-build` job **and** a live local build on a Docker-capable host. A live `docker run` container was confirmed to respond to `/health` with HTTP 200, and to run as the non-root `app` user — see `docs/release-evidence.md` §B2 for the full accounting, including the earlier session where this couldn't be completed due to a virtualization limitation on that VM.
 - AI review, security, and ownership evidence is in `docs/`.
 
 ### How to run locally
@@ -239,7 +238,7 @@ docker build -t task-tracker .
 docker run --rm -p 8000:8000 task-tracker
 curl http://127.0.0.1:8000/health
 ```
-The build step is confirmed working (CI [run 31478809319](https://github.com/marounhbayter1/Task-Tracker/actions/runs/31478809319)); the `run`/`curl` steps are the correct, documented commands but were not executed live in this environment — see [`docs/release-evidence.md`](docs/release-evidence.md) §B2.
+The build step is confirmed working via CI ([run 31478809319](https://github.com/marounhbayter1/Task-Tracker/actions/runs/31478809319)) **and** via a live local build; the `run`/`curl` steps were also executed live on a Docker-capable host, with `/health` returning HTTP 200 from the running container — see [`docs/release-evidence.md`](docs/release-evidence.md) §B2 for the full, dated evidence.
 
 ### Evidence files
 - [`docs/release-evidence.md`](docs/release-evidence.md)

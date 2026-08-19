@@ -58,32 +58,63 @@ Both were already in good shape; no changes were required:
 - `.dockerignore` excludes `.env`, `.env.*`, `.git`, caches, and virtual envs
 - Only `backend/app` is copied into the image — no `tests/`, `frontend/`, `docs/`, or env files
 
-### Build/run — environment limitation
+### Build/run — resolved on a Docker-capable host (2026-08-19)
 
-`docker build`/`docker run` **could not be executed in this session's environment**: this machine is a VM hosted under VMware Workstation with no nested virtualization (VT-x/EPT) exposed to the guest, which Docker Desktop's engine requires on Windows. 
+The prior submission of this section was rejected: a CI-only build is not a substitute for a live local `docker build` + `docker run` + `/health` check, and the brief has no "or a short note" alternative for this requirement. The environment limitation described below (originally hit on a VMware Workstation VM with no nested virtualization) was specific to that machine; on a separate, Docker-capable Windows host (Docker Desktop 4.87.0, engine 29.7.2), the full local build/run/verify sequence was executed live and is recorded here.
 
-**What was confirmed instead:**
-
-1. **The image does build successfully**, just not in this session — GitHub Actions' `docker-build` job (`docker build -t task-tracker:ci .`, using the same `Dockerfile` and repo checkout) succeeded on the latest run: [31478809319 / job `docker-build`](https://github.com/marounhbayter1/Task-Tracker/actions/runs/31478809319/job/93738823136), conclusion `success`. This is real CI evidence of a successful build, from a different, working environment.
-2. **Non-root user and no-secrets-copied were verified by reading `Dockerfile`/`.dockerignore`**, not by running a container (see the bullet list above) — this is static/code-level verification only, explicitly not a substitute for a live `docker run` check.
-3. **Not confirmed in this session**: an actual `docker run` container responding to `GET /health` with 200, and a live `whoami` check inside the container. These remain open until run on a host with working virtualization (the runtime commands below are correct and unchanged from README §6, just unexecuted here).
-
-### Runtime commands (documented, not executed here)
+**Commands run, in order, from the repo root:**
 
 ```powershell
 docker build -t task-tracker .
-docker run --rm -p 8000:8000 task-tracker
+docker run --rm -d --name task-tracker-run -p 8000:8000 task-tracker
+curl http://127.0.0.1:8000/health
 ```
+
+**Observed, live results:**
+
+1. **Build succeeded.** `docker build -t task-tracker .` completed with `naming to docker.io/library/task-tracker:latest done`. Resulting image: `task-tracker:latest`, id `5a6bfe075c9f`, size 259MB.
+2. **Container started and stayed up.** `docker ps` showed `task-tracker-run` as `Up`, with `0.0.0.0:8000->8000/tcp` mapped, and `docker logs` showed a clean startup: `Application startup complete.` / `Uvicorn running on http://0.0.0.0:8000`.
+3. **`/health` returned live HTTP 200.** To rule out any ambiguity with a locally-running (non-Docker) instance of the app that happened to also be on port 8000 during this session, that local process was stopped first, then `/health` was re-checked against port 8000 with only the container running:
+   ```
+   $ curl -s -w "\nHTTP:%{http_code}\n" http://127.0.0.1:8000/health
+   {"status":"ok","timestamp":"2026-08-19T08:59:53.647907+00:00"}
+   HTTP:200
+   ```
+   Container logs confirm the same request server-side: `INFO: 172.17.0.1:59024 - "GET /health HTTP/1.1" 200 OK`.
+4. **Non-root user confirmed live**, not just by reading the `Dockerfile`:
+   ```
+   $ docker exec task-tracker-run whoami
+   app
+   $ docker exec task-tracker-run id
+   uid=1000(app) gid=1000(app) groups=1000(app)
+   ```
+
+This supersedes the CI-only evidence as the primary proof for this section; the CI build result (item 1 in the superseded list below) is kept as corroborating evidence from a second, independent environment.
+
+<details>
+<summary>Superseded: prior session's environment-limitation note (kept for an accurate record)</summary>
+
+`docker build`/`docker run` **could not be executed in that session's environment**: that machine was a VM hosted under VMware Workstation with no nested virtualization (VT-x/EPT) exposed to the guest, which Docker Desktop's engine requires on Windows.
+
+What was confirmed instead, at the time:
+
+1. The image builds successfully in CI — GitHub Actions' `docker-build` job (`docker build -t task-tracker:ci .`) succeeded on run [31478809319 / job `docker-build`](https://github.com/marounhbayter1/Task-Tracker/actions/runs/31478809319/job/93738823136), conclusion `success`.
+2. Non-root user and no-secrets-copied were verified only by reading `Dockerfile`/`.dockerignore`, not by running a container.
+3. Not confirmed at the time: a live `docker run` container responding to `GET /health` with 200, and a live `whoami` check inside the container.
+
+This gap is now closed by the live verification above.
+
+</details>
 
 ### Docker safety check
 
 | Check | Result | How verified |
 |---|---|---|
-| Runs as non-root user | Yes, per `Dockerfile` (`USER app`) | Code inspection only — not confirmed via a live container in this session |
-| No `.env`/secrets copied into the image | Yes | Code inspection — `Dockerfile` only `COPY`s `requirements.txt` and `backend/app`; `.dockerignore` also excludes `.env*` as a second layer |
-| Image builds successfully | Yes | Live CI run (see above) |
+| Runs as non-root user | Yes, per `Dockerfile` (`USER app`) | **Live**: `docker exec task-tracker-run whoami` → `app`; `id` → `uid=1000(app) gid=1000(app)` |
+| No `.env`/secrets copied into the image | Yes | Code inspection — `Dockerfile` only `COPY`s `requirements.txt` and `app`; `.dockerignore` also excludes `.env*` as a second layer |
+| Image builds successfully | Yes | **Live**: `docker build -t task-tracker .` on 2026-08-19, plus corroborating CI run (see superseded note above) |
 | Clear runtime command | Yes | `docker run --rm -p 8000:8000 task-tracker` maps the container's port 8000 to the host with no extra flags required |
-| Container responds to `/health` with 200 | **Not verified in this session** | Blocked by the virtualization limitation above; needs to be run on a host with working Docker |
+| Container responds to `/health` with 200 | **Yes — verified live** on 2026-08-19: `curl http://127.0.0.1:8000/health` → `HTTP 200`, `{"status":"ok","timestamp":"2026-08-19T08:59:53.647907+00:00"}` |
 
 ## B3 — Documentation checked against reality
 
