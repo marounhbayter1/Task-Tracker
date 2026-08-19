@@ -1,3 +1,4 @@
+Testing Commit
 # Task Tracker
 
 Task Tracker project: a small full-stack task management app built with FastAPI and a static HTML/JS frontend. The backend stores tasks and activity history in a local JSON file (`data/tasks.json`), supports task CRUD, normalizes and validates tags, enforces a fixed status-transition workflow, and records create/update/delete/status-change activity events.
